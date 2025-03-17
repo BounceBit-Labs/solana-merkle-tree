@@ -60,6 +60,21 @@ impl<'a> Proof<'a> {
         });
         result.is_some()
     }
+
+    pub fn verify_with_root(&self, candidate: Hash) -> Option<Hash> {
+        let result = self.0.iter().try_fold(candidate, |candidate, pe| {
+            let lsib = pe.1.unwrap_or(&candidate);
+            let rsib = pe.2.unwrap_or(&candidate);
+            let hash = hash_intermediate!(lsib, rsib);
+
+            if hash == *pe.0 {
+                Some(hash)
+            } else {
+                None
+            }
+        });
+        result
+    }
 }
 
 impl MerkleTree {
@@ -232,10 +247,12 @@ mod tests {
     #[test]
     fn test_path_verify_good() {
         let mt = MerkleTree::new(TEST);
+        let root = mt.get_root().copied();
         for (i, s) in TEST.iter().enumerate() {
             let hash = hash_leaf!(s);
             let path = mt.find_path(i).unwrap();
             assert!(path.verify(hash));
+            assert_eq!(path.verify_with_root(hash), root);
         }
     }
 
